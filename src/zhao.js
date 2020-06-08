@@ -1,0 +1,1 @@
+export default '小金猪'
