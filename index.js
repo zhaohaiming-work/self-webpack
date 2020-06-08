@@ -4,6 +4,7 @@ const parser = require('@babel/parser')
 const traverse = require('@babel/traverse').default
 const path = require('path')
 const { transformFromAst } = require('@babel/core')
+const fsExtra = require('fs-extra')
 const Parser = {
   getAst: path => {
     const content = fs.readFileSync(path, 'utf-8')
@@ -17,7 +18,6 @@ const Parser = {
     traverse(ast, {
       // 类型为 ImportDeclaration 的 AST 节点 (即为import 语句)
       ImportDeclaration({ node }) {
-        // console.log(node)
         const dirname = path.dirname(filename)
         // 保存依赖模块路径,之后生成依赖关系图需要用到
         const filePath = './' + path.join(dirname, node.source.value)
@@ -81,26 +81,31 @@ class Compiler {
         }
       }
     }, {})
-    console.log(JSON.stringify(this.modules))
+    // console.log(JSON.stringify(this.modules))
     this.generate(dependencyGraph)
   }
   // 重写 require函数 (浏览器不能识别commonjs语法),输出bundle
   generate(code) {
     // 输出文件路径
-    const filePath = path.join(this.output.filePath, this.output.filename)
-    const bundle = `(function(graph){   
-         function require(module){    
-            function localRequire(relativePath){ 
-                   return require(graph[module].dependecies[relativePath])  
-              }        var exports = {};     
-           (function(require,exports,code){   
-                 eval(code)     
-           })(localRequire,exports,graph[module].code);   
-             return exports;      }  
-            require('${this.entry}')  
-        })(${JSON.stringify(code)})`
+    const filePath = path.join(this.output.path, this.output.filename)
+    // console.log(filePath)
+    !fsExtra.existsSync(filePath) && fsExtra.mkdirSync(this.output.path)
+    fsExtra.emptyDirSync(this.output.path)
+    const bundle = `(function(graph){
+      function require(moduleId){ 
+        function localRequire(relativePath){
+          return require(graph[moduleId].dependecies[relativePath])
+        }
+        var exports = {};
+        (function(require,exports,code){
+          eval(code)
+        })(localRequire,exports,graph[moduleId].code);
+        return exports;
+      }
+      require('${this.entry}')
+    })(${JSON.stringify(code)})`
     // 把文件内容写入到文件系统
-    fs.writeFileSync(filePath, bundle, 'utf-8')
+    fsExtra.writeFileSync(filePath, bundle, 'utf-8')
   }
 
 }

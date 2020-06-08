@@ -1,3 +1,2 @@
-import test from './test.js'
-var aaa = 9999
-console.log(aaa)
+import { say } from "./hello.js";
+document.write(say("webpack"));
