@@ -20,7 +20,7 @@ const Parser = {
       ImportDeclaration({ node }) {
         const dirname = path.dirname(filename)
         // 保存依赖模块路径,之后生成依赖关系图需要用到
-        const filePath = './' + path.join(dirname, node.source.value)
+        const filePath = './' + path.join(dirname, node.source.value).replace('\\', '/')
         dependecies[node.source.value] = filePath
       }
     })
@@ -62,27 +62,29 @@ class Compiler {
     // console.log(info)
     this.modules.push(info)
     // 判断有依赖对象,递归解析所有依赖项
-    this.modules.forEach(({ dependecies }) => {
+    for (let i = 0; i < this.modules.length; i++) {
+      const item = this.modules[i];
+      // 拿到当前模块所依赖的模块
+      const { dependecies } = item;
       if (dependecies) {
-        for (const dependency in dependecies) {
-          this.modules.push(this.build(dependecies[dependency]))
+        // 通过 for-in 遍历对象
+        for (let j in dependecies) {
+          // 如果子模块又依赖其它模块，就分析子模块的内容
+          this.modules.push(this.build(dependecies[j]));
         }
+      }
+    }
+    // 将图谱的数组形式转换成对象形式
+    const gragh = {}; 
+    this.modules.forEach(item => {
+      gragh[item.filename] = {
+        dependecies: item.dependecies,
+        code: item.code
       }
     })
-    // 生成依赖关系图
-    const dependencyGraph = this.modules.reduce((graph, item) => {
-      // console.log(item)
-      return {
-        ...graph,
-        // 使用文件路径作为每个模块的唯一标识符,保存对应模块的依赖对象和文件内容
-        [item.filename]: {
-          dependecies: item.dependecies,
-          code: item.code
-        }
-      }
-    }, {})
+    // console.log(gragh)
     // console.log(JSON.stringify(this.modules))
-    this.generate(dependencyGraph)
+    this.generate(gragh)
   }
   // 重写 require函数 (浏览器不能识别commonjs语法),输出bundle
   generate(code) {

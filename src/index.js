@@ -1,2 +1,3 @@
-import { say } from "./hello.js";
-document.write(say("webpack"));
+import say from "./hello.js";
+
+document.write(say);
